@@ -16,49 +16,106 @@ from packages.translation.providers.base import (
 
 logger = logging.getLogger("sachitone.provider.gemini")
 
+ISO_LANGUAGE_MAP: dict[str, str] = {
+    "vietnamese": "vi", "vie": "vi", "vn": "vi", "tiếng việt": "vi",
+    "english": "en", "eng": "en", "us": "en", "uk": "en",
+    "japanese": "ja", "jpn": "ja", "jp": "ja", "tiếng nhật": "ja",
+    "korean": "ko", "kor": "ko", "kr": "ko", "tiếng hàn": "ko",
+    "chinese": "zh", "zho": "zh", "chi": "zh", "cn": "zh", "tiếng trung": "zh",
+    "spanish": "es", "spa": "es", "tiếng tây ban nha": "es",
+    "french": "fr", "fra": "fr", "fre": "fr", "tiếng pháp": "fr",
+    "german": "de", "deu": "de", "ger": "de", "tiếng đức": "de",
+    "russian": "ru", "rus": "ru", "tiếng nga": "ru",
+    "thai": "th", "tha": "th", "tiếng thái": "th",
+    "indonesian": "id", "ind": "id", "tiếng indonesia": "id",
+    "portuguese": "pt", "por": "pt", "tiếng bồ đào nha": "pt",
+    "italian": "it", "ita": "it", "tiếng ý": "it",
+}
+
+
+def normalize_lang_code(code: str) -> str:
+    if not code:
+        return "auto"
+    cleaned = code.strip().lower()
+    if cleaned in ISO_LANGUAGE_MAP:
+        return ISO_LANGUAGE_MAP[cleaned]
+    base = re.split(r"[-_]", cleaned)[0]
+    return ISO_LANGUAGE_MAP.get(base, base)
+
+
+def calculate_reciprocal_targets(source_lang: str, configured_langs: list[str]) -> list[str]:
+    norm_source = normalize_lang_code(source_lang)
+    norm_configured = [normalize_lang_code(l) for l in configured_langs if l and l.strip()]
+
+    # If source is in configured set, reciprocal targets are the remaining languages
+    if norm_source in norm_configured:
+        return [l for l in norm_configured if l != norm_source]
+
+    # If source is not in configured set (or unknown/auto), translate into all configured languages
+    return norm_configured
+
+
 SYSTEM_INSTRUCTION = """You are a high-quality Discord contextual translation engine.
 Your sole job is to translate user text naturally from the source language to the target language.
 
 Core Directives:
-1. Contextual Slang & Teencode Understanding:
-   - Understand informal conversational speech, internet slang, abbreviations, typos, memes, and mixed language (e.g. Vietnamese mixed with English, gaming slang).
-   - Infer meaning from context rather than translating mechanical word-by-word.
-   - For example, in Vietnamese informal Discord chat, abbreviations and teencode variants (such as 'ko', 'k', 'kh', 'hok', 'hong', 'hông' -> không; 'mik' -> mình; 'm' -> mày/mình; 't' -> tao; 'j' -> gì; 'cx' -> cũng; 'r' -> rồi; 'đc' -> được) must be interpreted contextually within the sentence, not mechanically substituted.
-   - Phrases like "má nay con kia flex 3 pity ra char luôn" must be understood naturally as casual gaming/fandom talk.
+1. Holistic Sentence Interpretation:
+   - Interpret the ENTIRE sentence as a coherent whole before translating. Never translate word-by-word or literal tokens.
+   - Understand informal conversation, internet slang, abbreviations, omitted subjects, typos, memes, and mixed language based on sentence context.
 
-2. Tone & Style Preservation:
-   - Match the casualness, emotion, and tone of the original speaker.
-   - Keep casual input casual (e.g. "bro wtf 😭" -> informal/slang target equivalent, NOT stiff or formal language).
-   - Do not sanitize or over-correct ordinary conversational slang.
+2. Contextual Vietnamese Teencode & Shorthand:
+   - Vietnamese informal Discord messages heavily use abbreviations and teencode. Always determine their meaning from sentence context rather than rigid rules:
+     * 'h' frequently means 'giờ' (now/time), e.g. "h lm gì bây giờ" means "giờ làm gì bây giờ" -> "What should I do now?"
+     * 'lm' means 'làm' (do/make)
+     * 'k', 'ko', 'kh', 'khum', 'hok', 'hong', 'hông' mean 'không' (no/not)
+     * 'mik', 'm' mean 'mình' or 'mày' depending on context
+     * 't' means 'tao' (I/me), 'j' means 'gì' (what), 'cx' means 'cũng' (also), 'r' means 'rồi' (already)
+     * 'đc', 'dc' mean 'được' (can/fine/got it)
+     * 'bt' means 'biết' (know) or 'bình thường' (normal) depending on context
+     * 's' means 'sao' (why/how), 'v', 'z' mean 'vậy' (so/like that), 'chx' means 'chưa' (not yet)
+     * 'mn' means 'mọi người' (everyone), 'ny' means 'người yêu' (partner/lover)
+     * 'dt', 'đt' mean 'điện thoại' (phone), 'nt' means 'nhắn tin' (texting)
+   - Never assume an abbreviation has one fixed meaning across all contexts (e.g. 'h' in "h lm gì" is 'giờ' (now), but in "mai 2h gặp" it means 'hours').
 
-3. Entity & Structure Preservation:
-   - Discord mentions (<@123456789>, <@!123456789>, <@&123456789>, <#123456789>, <:custom_emoji:123456789>) must remain completely intact and unchanged.
-   - URLs, hyperlinks, emails, usernames, character names, server names, and proper nouns must remain intact.
-   - Preserved code: Inline code (`code`) and multi-line code blocks (```...```) must NOT be translated.
-   - Emojis and emoticons (e.g. 😭, :), (⁠^⁠^⁠) ) must be preserved in their appropriate positions.
-   - Markdown formatting (*italics*, **bold**, __underline__, ~~strikethrough~~, > quotes) must be maintained.
+3. Tone & Intent Preservation:
+   - Match the casualness, emotion, slang, sarcasm, and register of the original speaker.
+   - Do not sanitize or over-correct informal language. Do not invent missing information.
 
-4. Output Constraints:
-   - Output ONLY the direct translated text.
-   - NEVER include explanations, notes, pronunciation, alternatives, commentary, quotation wrappers, or labels like "Translation:".
+4. Entity & Structure Preservation:
+   - Mentions (<@123>, <#123>, <:emoji:123>), URLs, usernames, server names, proper nouns, and Markdown formatting must remain intact.
+   - Inline code (`code`) and multiline code blocks (```code```) must NOT be translated.
+   - Emojis must be kept in appropriate contextual positions.
+
+5. Output Format:
+   - Output ONLY the raw translation result.
+   - Do NOT include labels like "Translation:", notes, or conversational preambles.
 """
 
 SYSTEM_INSTRUCTION_MULTI = """You are a high-quality Discord contextual translation engine.
-Your task is to detect the source language of the input text and translate it naturally into the requested target languages.
+Your mission is to detect the source language of user messages and provide natural reciprocal translations for a multilingual channel.
 
 Core Directives:
-1. Contextual Slang & Teencode Understanding:
-   - Understand informal conversational speech, internet slang, abbreviations, typos, memes, and mixed language (e.g. Vietnamese mixed with English gaming slang).
-   - Infer meaning contextually without mechanical substitution.
-   - Examples of Vietnamese informal chat abbreviations ('ko', 'k', 'kh', 'hok', 'hong', 'hông' -> không; 'mik' -> mình; 'm' -> mày/mình; 't' -> tao; 'j' -> gì; 'cx' -> cũng; 'r' -> rồi; 'đc' -> được). Interpret them naturally in context.
-   - Expressions like "má nay con kia flex 3 pity ra char luôn" must be translated as natural casual gaming chat.
+1. Holistic Sentence Interpretation:
+   - Interpret the ENTIRE sentence as a whole before translating. Never translate word-by-word.
+   - Understand informal conversation, internet slang, abbreviations, typos, memes, and mixed language contextually.
 
-2. Tone & Entity Preservation:
-   - Match the casualness, emotion, and tone of the original speaker.
-   - Keep Discord mentions (<@123456789>, <@&123456789>, <#123456789>, <:custom_emoji:123456789>), URLs, usernames, emojis, Markdown, and code blocks completely intact.
-   - Do not translate inline code or code blocks.
+2. Contextual Vietnamese Teencode & Shorthand:
+   - Accurately infer Vietnamese abbreviations using sentence context:
+     * "h lm gì bây giờ" -> means "giờ làm gì bây giờ" -> "What should I do now?"
+     * "hnay mik hok biet lam j" -> "I don't know what to do today"
+     * "mai 2h gặp nha mn" -> '2h' is 2 o'clock, 'mn' is everyone -> "See everyone tomorrow at 2 o'clock"
+     * "má nay con kia flex 3 pity ra char luôn" -> "Damn, that girl just flexed pulling the character at 3 pity!"
+   - Never assume an abbreviation has only one mechanical replacement.
 
-3. Output Format:
+3. Reciprocal Target Language Selection:
+   - Detect the source language accurately as a 2-letter ISO 639-1 code (e.g., 'vi', 'en', 'ja', 'es', 'ko', 'zh', 'fr', 'de', 'ru', 'th', 'id', 'pt', 'it').
+   - Compare the detected source language against the channel's configured supported languages:
+     * If the source language matches one of the configured languages, EXCLUDE it and translate ONLY into the remaining configured languages.
+       (Example: In a ['vi', 'en', 'ja'] channel, a Vietnamese message translates ONLY to 'en' and 'ja'. An English message translates ONLY to 'vi' and 'ja'. A Japanese message translates ONLY to 'vi' and 'en'.)
+     * If the source language does NOT match any configured language (e.g., Korean 'ko' in a ['vi', 'en', 'ja'] channel), translate into ALL configured languages.
+     * NEVER output a translation into the same language as the original input.
+
+4. Output Format:
    - Output ONLY valid JSON matching this schema:
      {
        "source_language": "detected_2_letter_iso_code",
@@ -66,8 +123,7 @@ Core Directives:
          "target_code": "translated text"
        }
      }
-   - Translate into each requested target language unless the target language is identical to the detected source language.
-   - Do NOT include markdown code fences, preambles, or explanations outside the JSON.
+   - Do NOT include markdown blocks or preambles outside the JSON.
 """
 
 
@@ -162,7 +218,7 @@ class GeminiProvider(TranslationProvider):
 
         targets_str = ", ".join(target_languages)
         user_prompt_parts = [
-            f"Requested Target Languages: {targets_str}",
+            f"Configured Channel Languages: {targets_str}",
             f"Text to Analyze & Translate:\n{text}",
         ]
         if context:
@@ -188,26 +244,36 @@ class GeminiProvider(TranslationProvider):
             raw_text = response.text or ""
             data = self._parse_multi_json(raw_text)
 
-            detected_source = str(data.get("source_language", "auto")).strip().lower()
+            raw_source = str(data.get("source_language", "auto")).strip().lower()
+            detected_source = normalize_lang_code(raw_source)
+
+            expected_targets = calculate_reciprocal_targets(detected_source, target_languages)
+
             translations_raw = data.get("translations", {})
             if not isinstance(translations_raw, dict):
                 translations_raw = {}
 
             cleaned_translations: dict[str, str] = {}
-            for tgt, val in translations_raw.items():
+            for raw_k, val in translations_raw.items():
                 if isinstance(val, str) and val.strip():
-                    cleaned_translations[tgt.strip().lower()] = self._clean_output(val)
+                    norm_k = normalize_lang_code(raw_k)
+                    if norm_k in expected_targets and norm_k != detected_source:
+                        cleaned_translations[norm_k] = self._clean_output(val)
 
-            # Fallback if structured output returned empty translations
-            if not cleaned_translations and target_languages:
-                logger.warning("Structured output returned no translations. Falling back to sequential translate.")
-                for tgt in target_languages:
-                    if tgt.lower() != detected_source:
-                        try:
-                            res = await self.translate(text=text, source_language=detected_source, target_language=tgt)
-                            cleaned_translations[tgt.lower()] = res
-                        except Exception:
-                            pass
+            missing_expected = [t for t in expected_targets if t not in cleaned_translations]
+            if missing_expected:
+                for tgt in missing_expected:
+                    try:
+                        res = await self.translate(
+                            text=text,
+                            source_language=detected_source,
+                            target_language=tgt,
+                            context=context,
+                        )
+                        if res and res.strip():
+                            cleaned_translations[tgt] = res.strip()
+                    except Exception as err:
+                        logger.warning("Fallback translate for %s failed: %s", tgt, err)
 
             return detected_source, cleaned_translations
 
