@@ -214,6 +214,6 @@ curl -X POST "http://localhost:8000/api/v1/translate" \
 3.  Commit mã nguồn rõ ràng, có type hint đầy đủ.
 4.  Mở Pull Request.
 
-## Giấy phép [LICENSE](LISENCE)
+## Giấy phép [LICENSE](LICENSE)
 
 Dự án được phát hành theo giấy phép mã nguồn mở MIT License.
