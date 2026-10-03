@@ -5,7 +5,6 @@ from typing import Literal
 import discord
 from discord import app_commands
 from discord.ext import commands
-from apps.bot.services.translator import LANGUAGE_NAMES
 from config.settings import settings
 
 logger = logging.getLogger("sachitone.bot.cogs.auto_translate")
@@ -62,6 +61,8 @@ class AutoTranslateCog(commands.Cog):
             for name, code in POPULAR_LANGUAGES
             if current_lower in name.lower() or current_lower in code.lower()
         ][:25]
+
+    # --- Slash Commands ---
 
     @autotranslate.command(name="setup", description="Enable auto-translation for a channel")
     @app_commands.describe(
@@ -355,7 +356,6 @@ class AutoTranslateCog(commands.Cog):
                 return
 
             new_content = after.content.strip()
-            # If user cleared the content, delete the translation
             if not has_translatable_content(new_content):
                 for mid in mapping["translated_message_ids"]:
                     try:
@@ -485,7 +485,7 @@ class AutoTranslateCog(commands.Cog):
                 allowed_mentions=discord.AllowedMentions.none(),
             )
 
-        text_content = self._build_text(message.author, translations)
+        text_content = self._build_text(translations)
         return await message.reply(
             content=text_content,
             mention_author=False,
@@ -508,18 +508,15 @@ class AutoTranslateCog(commands.Cog):
                 allowed_mentions=discord.AllowedMentions.none(),
             )
         else:
-            text_content = self._build_text(author, translations)
+            text_content = self._build_text(translations)
             await trans_msg.edit(
                 content=text_content,
                 embed=None,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
 
-    def _build_text(self, author: discord.User | discord.Member, translations: dict[str, str]) -> str:
-        lines = [f"-# **{author.display_name}**"]
-        for lang, trans in translations.items():
-            lines.append(f"**{lang.upper()}:** {trans}")
-        return "\n".join(lines)
+    def _build_text(self, translations: dict[str, str]) -> str:
+        return "\n".join(f"`{lang.upper()}`: {trans}" for lang, trans in translations.items())
 
     def _build_embed(
         self,
@@ -527,18 +524,16 @@ class AutoTranslateCog(commands.Cog):
         translations: dict[str, str],
         jump_url: str,
     ) -> discord.Embed:
-        embed = discord.Embed(color=settings.embed_color)
+        content = "\n".join(f"`{lang.upper()}`: {trans}" for lang, trans in translations.items())
+        embed = discord.Embed(
+            description=content[:4096],
+            color=settings.embed_color,
+        )
         embed.set_author(
             name=author.display_name,
             icon_url=author.display_avatar.url,
             url=jump_url,
         )
-        for lang, trans in translations.items():
-            name = self.bot.translator_service.get_language_name(lang)
-            field_name = f"{name} ({lang.upper()})"
-            field_val = trans[:1020] + "..." if len(trans) > 1024 else trans
-            embed.add_field(name=field_name, value=field_val, inline=False)
-
         return embed
 
 
