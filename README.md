@@ -2,7 +2,7 @@
   <img src="./assets/icon.png" alt="Sachitone Translator" width="128" height="128" />
 </p>
 
-<h1 align="center">Sachitone Translator</h1>
+<h1 align="center">Nvirya Translator</h1>
 
 <p align="center">
   Bot Discord dịch thuật AI theo ngữ cảnh và dịch vụ REST API siêu nhẹ viết bằng Python, sử dụng mô hình Google Gemini (<code>gemini-3.5-flash-lite</code>).
