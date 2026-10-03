@@ -1,7 +1,9 @@
 import logging
+import os
 import sys
 from functools import lru_cache
 from pathlib import Path
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -20,7 +22,9 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.5-flash-lite"
     api_host: str = "0.0.0.0"
-    api_port: int = 8000
+    api_port: int = Field(
+        default_factory=lambda: int(os.getenv("PORT", os.getenv("API_PORT", "8000")))
+    )
     bot_prefix: str = "!"
     log_level: str = "INFO"
     max_translation_length: int = 2000
