@@ -1,4 +1,4 @@
-<img src="https://yt3.googleusercontent.com/_7PubeI60akIz4paf4g6LO8XaPJ3hNr50RPx8nD6CTQZd-OWuZNQe48lhCu59ubNdEqvAc2YEQ=s900-c-k-c0x00ffffff-no-rj" alt="Sachitone Translator" width="128" height="128" style="border-radius: 25%;" />
+<img src="./assets/icon.png" alt="Sachitone Translator" width="128" height="128" />
 
 # Sachitone Translator
 
