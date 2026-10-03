@@ -62,8 +62,6 @@ class AutoTranslateCog(commands.Cog):
             if current_lower in name.lower() or current_lower in code.lower()
         ][:25]
 
-    # --- Slash Commands ---
-
     @autotranslate.command(name="setup", description="Enable auto-translation for a channel")
     @app_commands.describe(
         channel="The text channel to auto-translate",
@@ -356,11 +354,19 @@ class AutoTranslateCog(commands.Cog):
                 return
 
             new_content = after.content.strip()
+
+            trans_id = mapping["translated_message_ids"][0] if mapping["translated_message_ids"] else None
+            trans_msg = None
+            if trans_id:
+                try:
+                    trans_msg = await after.channel.fetch_message(trans_id)
+                except (discord.NotFound, discord.Forbidden):
+                    trans_msg = None
+
             if not has_translatable_content(new_content):
-                for mid in mapping["translated_message_ids"]:
+                if trans_msg:
                     try:
-                        m = await after.channel.fetch_message(mid)
-                        await m.delete()
+                        await trans_msg.delete()
                     except (discord.NotFound, discord.Forbidden):
                         pass
                 await self.bot.storage.delete_translation_message(after.id)
@@ -382,15 +388,13 @@ class AutoTranslateCog(commands.Cog):
                 )
 
             if not success or not translations:
+                if trans_msg:
+                    try:
+                        await trans_msg.delete()
+                    except (discord.NotFound, discord.Forbidden):
+                        pass
+                await self.bot.storage.delete_translation_message(after.id)
                 return
-
-            trans_id = mapping["translated_message_ids"][0] if mapping["translated_message_ids"] else None
-            trans_msg = None
-            if trans_id:
-                try:
-                    trans_msg = await after.channel.fetch_message(trans_id)
-                except (discord.NotFound, discord.Forbidden):
-                    trans_msg = None
 
             try:
                 if trans_msg:
