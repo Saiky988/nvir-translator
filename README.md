@@ -55,7 +55,8 @@ flowchart TD
 
 ```bash
 git clone https://github.com/your-org/sachitone-translator.git
-cd sachitone-translator```
+cd sachitone-translator
+```
 
 2. Tạo môi trường ảo (Virtual Environment)
 
@@ -63,25 +64,29 @@ Trên Linux / macOS:
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate```
+source .venv/bin/activate
+```
 
 Trên Windows:
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate```
+.venv\Scripts\activate
+```
 
 3. Cài đặt dependencies
 
 ```bash
-pip install -e .```
+pip install -e .
+```
 
 Cấu hình biến môi trường
 
 Sao chép file cấu hình mẫu .env.example thành .env:
 
 ```bash
-cp .env.example .env```
+cp .env.example .env
+```
 
 Điền các thông tin vào .env:
 
@@ -94,7 +99,8 @@ API_PORT=8000
 BOT_PREFIX=!
 LOG_LEVEL=INFO
 MAX_TRANSLATION_LENGTH=2000
-TRANSLATION_TIMEOUT=15```
+TRANSLATION_TIMEOUT=15
+```
 
 ## Bảng giải thích cấu hình
 
@@ -117,18 +123,21 @@ TRANSLATION_TIMEOUT=15```
 Chạy script kiểm tra để xác thực API Key và dịch thử 1 câu mẫu:
 
 ```bash
-python scripts/setup_commands.py```
+python scripts/setup_commands.py
+```
 
 Nếu muốn sync nhanh Slash Command vào một Discord Server cụ thể để test ngay
 (không phải chờ Discord đồng bộ global):
 
 ```bash
-python scripts/setup_commands.py --guild <ID_SERVER_CUA_BAN>```
+python scripts/setup_commands.py --guild <ID_SERVER_CUA_BAN>
+```
 
 2. Khởi chạy FastAPI Service
 
 ```bash
-uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload```
+uvicorn apps.api.main:app --host 0.0.0.0 --port 8000 --reload
+```
 
 Giao diện tài liệu API tương tác:
 
@@ -140,9 +149,10 @@ Giao diện tài liệu API tương tác:
 Mở một terminal khác và chạy:
 
 ```bash
-python -m apps.bot.main```
+python -m apps.bot.main
+```
 
-Thiết lập Discord Bot trên Developer Portal
+## Thiết lập Discord Bot trên Developer Portal
 
 1.  Truy cập Discord Developer Portal.
 2.  Tạo mới một ứng dụng (New Application) và thêm Bot.
