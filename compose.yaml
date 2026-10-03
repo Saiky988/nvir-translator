@@ -1,0 +1,40 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sachitone-api
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MAX_TRANSLATION_LENGTH=${MAX_TRANSLATION_LENGTH:-2000}
+      - TRANSLATION_TIMEOUT=${TRANSLATION_TIMEOUT:-15}
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sachitone-bot
+    command: python -m apps.bot.main
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.5-flash-lite}
+      - BOT_PREFIX=${BOT_PREFIX:-!}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MAX_TRANSLATION_LENGTH=${MAX_TRANSLATION_LENGTH:-2000}
+      - TRANSLATION_TIMEOUT=${TRANSLATION_TIMEOUT:-15}
+    restart: unless-stopped
