@@ -20,39 +20,6 @@ Khác với các công cụ dịch từ-qua-từ thông thường, Sachitone Tra
 
 ---
 
-## Kiến trúc hệ thống
-
-```mermaid
-flowchart TD
-    %% Styling
-    classDef client fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc,rx:8,ry:8;
-    classDef core fill:#0f172a,stroke:#818cf8,stroke-width:2px,color:#f8fafc,rx:8,ry:8;
-    classDef ai fill:#1e1b4b,stroke:#c084fc,stroke-width:2px,color:#f8fafc,rx:8,ry:8;
-
-    subgraph Entrypoints [" Ingress Clients "]
-        DA["Discord App"]:::client --> BC["Bot Cog"]:::client
-        BC --> BTS["🤖 Bot Translator Service"]:::client
-
-        HC["HTTP Client / Apps"]:::client --> TR["⚡ Translate Route (FastAPI)"]:::client
-    end
-
-    subgraph CoreEngine [" Core Processing "]
-        BTS --> TE
-        TR --> TE
-        TE["Translation Engine<br/><small>Validation • In-Memory Cache • Trim</small>"]:::core
-    end
-
-    subgraph ModelLayer [" AI Provider Layer "]
-        TE --> API_INT["AI Provider Interface"]:::ai
-        API_INT --> GP["Gemini Provider"]:::ai
-        GP --> GAPI["Google Gemini API<br/><code>gemini-3.5-flash-lite</code>"]:::ai
-    end
-```
-
-
-
----
-
 ## Yêu cầu môi trường
 
 - Python 3.11 trở lên
