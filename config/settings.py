@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     max_translation_length: int = 2000
     translation_timeout: float = 15.0
 
+    database_path: str = Field(
+        default_factory=lambda: os.getenv("DATABASE_PATH", "data/translator.db")
+    )
+    auto_translate_max_targets: int = 3
+    auto_translate_semaphore: int = 5
+    embed_color: int = 0x5865F2
+
 
 @lru_cache
 def get_settings() -> Settings:

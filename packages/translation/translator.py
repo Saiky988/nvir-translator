@@ -4,7 +4,12 @@ from packages.translation.cache import TranslationCache
 from packages.translation.engine import TranslationEngine
 from packages.translation.providers.ai_provider import GeminiProvider
 from packages.translation.providers.base import TranslationProvider
-from packages.translation.schemas import TranslationRequest, TranslationResponse
+from packages.translation.schemas import (
+    MultiTranslationRequest,
+    MultiTranslationResponse,
+    TranslationRequest,
+    TranslationResponse,
+)
 
 
 class Translator:
@@ -25,6 +30,21 @@ class Translator:
             context=context,
         )
         return await self.engine.execute(request)
+
+    async def translate_multiple(
+        self,
+        text: str,
+        target_languages: list[str],
+        source_language: str = "auto",
+        context: str | None = None,
+    ) -> MultiTranslationResponse:
+        request = MultiTranslationRequest(
+            text=text,
+            target_languages=target_languages,
+            source_language=source_language,
+            context=context,
+        )
+        return await self.engine.execute_multi(request)
 
 
 @lru_cache

@@ -23,6 +23,24 @@ LANGUAGE_FLAGS: dict[str, str] = {
     "ru": "🇷🇺",
     "th": "🇹🇭",
     "id": "🇮🇩",
+    "pt": "🇵🇹",
+    "it": "🇮🇹",
+}
+
+LANGUAGE_NAMES: dict[str, str] = {
+    "vi": "Vietnamese",
+    "en": "English",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "zh": "Chinese",
+    "fr": "French",
+    "de": "German",
+    "es": "Spanish",
+    "ru": "Russian",
+    "th": "Thai",
+    "id": "Indonesian",
+    "pt": "Portuguese",
+    "it": "Italian",
 }
 
 
@@ -57,6 +75,9 @@ class BotTranslatorService:
 
     def get_flag(self, lang_code: str) -> str:
         return LANGUAGE_FLAGS.get(lang_code.lower(), f"[{lang_code.upper()}]")
+
+    def get_language_name(self, lang_code: str) -> str:
+        return LANGUAGE_NAMES.get(lang_code.lower(), lang_code.upper())
 
     async def translate_text(
         self,
@@ -110,6 +131,57 @@ class BotTranslatorService:
         except Exception as exc:
             logger.error("Bot unhandled translation error: %s | guild_id=%s", type(exc).__name__, guild_id)
             return False, ["An unexpected error occurred while translating. Please try again."]
+
+    async def translate_multiple_text(
+        self,
+        text: str,
+        target_langs: list[str],
+        source_lang: str = "auto",
+        user_id: int | None = None,
+        guild_id: int | None = None,
+    ) -> tuple[bool, str, dict[str, str], str | None]:
+        start_time = time.monotonic()
+        try:
+            result = await self.translator.translate_multiple(
+                text=text,
+                target_languages=target_langs,
+                source_language=source_lang,
+            )
+            elapsed = time.monotonic() - start_time
+            detected = result.detected_source_language.strip().lower()
+
+            base_source = detected.split("-")[0]
+            filtered_translations: dict[str, str] = {}
+            for tgt, translated_content in result.translations.items():
+                base_target = tgt.strip().lower().split("-")[0]
+                if base_target != base_source and tgt in target_langs:
+                    filtered_translations[tgt] = translated_content
+
+            logger.info(
+                "Multi-translation success | guild_id=%s user_id=%s detected=%s targets=%s latency=%.2fs",
+                guild_id,
+                user_id,
+                detected,
+                list(filtered_translations.keys()),
+                elapsed,
+            )
+            return True, detected, filtered_translations, None
+
+        except TimeoutError:
+            logger.warning("Auto-translate timeout | guild_id=%s", guild_id)
+            return False, "auto", {}, "Translation request timed out."
+
+        except RateLimitError:
+            logger.warning("Auto-translate rate limit | guild_id=%s", guild_id)
+            return False, "auto", {}, "Upstream translation rate limit reached."
+
+        except AuthenticationError:
+            logger.error("Auto-translate authentication error | guild_id=%s", guild_id)
+            return False, "auto", {}, "Translation configuration error."
+
+        except Exception as exc:
+            logger.error("Auto-translate error: %s | guild_id=%s", exc, guild_id)
+            return False, "auto", {}, "Translation service unavailable."
 
     @staticmethod
     def split_message(text: str, max_chunk_size: int = 1950) -> list[str]:

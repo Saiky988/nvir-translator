@@ -1,10 +1,26 @@
+import asyncio
 import logging
 import discord
 from discord.ext import commands
 from apps.bot.services.translator import BotTranslatorService
+from apps.bot.storage import AutoTranslateStorage
 from config.settings import settings
 
 logger = logging.getLogger("sachitone.bot.client")
+
+
+class MessageLockManager:
+    def __init__(self, max_locks: int = 1000):
+        self._locks: dict[int, asyncio.Lock] = {}
+        self._max_locks = max_locks
+
+    def get_lock(self, message_id: int) -> asyncio.Lock:
+        if message_id not in self._locks:
+            if len(self._locks) > self._max_locks:
+                for k in list(self._locks.keys())[:200]:
+                    del self._locks[k]
+            self._locks[message_id] = asyncio.Lock()
+        return self._locks[message_id]
 
 
 class SachitoneBot(commands.Bot):
@@ -17,13 +33,20 @@ class SachitoneBot(commands.Bot):
             intents=intents,
             help_command=None,
         )
+        self.storage = AutoTranslateStorage(db_path=settings.database_path)
         self.translator_service = BotTranslatorService()
+        self.semaphore = asyncio.Semaphore(settings.auto_translate_semaphore)
+        self.lock_manager = MessageLockManager()
 
     async def setup_hook(self) -> None:
+        await self.storage.connect()
+        logger.info("Auto-translate persistence initialized at %s", settings.database_path)
+
         cogs = [
             "apps.bot.cogs.translate",
             "apps.bot.cogs.settings",
             "apps.bot.cogs.admin",
+            "apps.bot.cogs.auto_translate",
         ]
         for cog in cogs:
             try:
@@ -46,3 +69,8 @@ class SachitoneBot(commands.Bot):
             self.user.id if self.user else "Unknown",
             len(self.guilds),
         )
+
+    async def close(self) -> None:
+        logger.info("Closing database connections and shutting down...")
+        await self.storage.close()
+        await super().close()

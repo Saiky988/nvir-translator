@@ -17,6 +17,21 @@ class TranslationResponse(BaseModel):
     model: str
 
 
+class MultiTranslationRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000, description="Text to translate")
+    target_languages: list[str] = Field(..., min_length=1, max_length=5, description="Target language codes")
+    source_language: str = Field(default="auto", description="Source language ISO code or 'auto'")
+    context: str | None = Field(default=None, max_length=1000, description="Optional surrounding context")
+
+
+class MultiTranslationResponse(BaseModel):
+    success: bool = True
+    detected_source_language: str
+    translations: dict[str, str] = Field(default_factory=dict)
+    provider: str = "gemini"
+    model: str
+
+
 class LanguageInfo(BaseModel):
     code: str
     name: str

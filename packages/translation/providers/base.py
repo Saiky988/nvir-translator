@@ -41,3 +41,13 @@ class TranslationProvider(ABC):
         context: str | None = None,
     ) -> str:
         ...
+
+    @abstractmethod
+    async def translate_multiple(
+        self,
+        text: str,
+        target_languages: list[str],
+        source_language: str = "auto",
+        context: str | None = None,
+    ) -> tuple[str, dict[str, str]]:
+        ...

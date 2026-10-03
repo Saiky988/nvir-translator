@@ -37,4 +37,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - MAX_TRANSLATION_LENGTH=${MAX_TRANSLATION_LENGTH:-2000}
       - TRANSLATION_TIMEOUT=${TRANSLATION_TIMEOUT:-15}
+      - DATABASE_PATH=/app/data/sachitone.db
+    volumes:
+      - ./data:/app/data
     restart: unless-stopped
