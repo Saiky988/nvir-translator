@@ -1,0 +1,19 @@
+[project]
+name = "sachitone-translator"
+version = "1.0.0"
+description = "AI-powered Discord contextual translation bot and lightweight FastAPI service"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "discord.py>=2.4.0",
+    "pydantic>=2.8.0",
+    "pydantic-settings>=2.4.0",
+    "google-genai>=1.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0.0"]
+build-backend = "setuptools.build_meta"
