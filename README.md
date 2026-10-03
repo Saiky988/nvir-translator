@@ -6,17 +6,36 @@ Khác với các công cụ dịch từ-qua-từ thông thường, Sachitone Tra
 
 ---
 
-## Tính năng nổi bật
+## Kiến trúc hệ thống
 
-- **Hiểu ngữ cảnh chat & Teencode:** Xử lý tự nhiên các từ viết tắt tiếng Việt (`ko`, `k`, `kh`, `hok`, `hong`, `mik`, `m`, `t`, `j`, `cx`, `r`, `đc`), tiếng lóng game (`flex 3 pity ra char luôn`) mà không dùng từ điển thô cứng.
-- **Bảo toàn cú pháp Discord:** Giữ nguyên user mention (`<@123>`), role mention (`<@&123>`), channel mention (`<#123>`), custom emoji (`<:name:123>`), URL liên kết và Markdown.
-- **Không dịch khối code:** Khối code inline (\`\`\`code\`\`\`) và code block (\`\`\` ... \`\`\`) được giữ nguyên hoàn toàn.
-- **Giữ đúng sắc thái (Tone):** Giữ văn phong tự nhiên, suồng sã, hài hước; không biến câu chat thân mật thành văn phong học thuật khô khan.
-- **Hỗ trợ 2 hình thức dịch:**
-  - Slash command: `/translate <text> <target> [source]` (tự động gợi ý ngôn ngữ).
-  - Context Menu: Nhấp chuột phải vào tin nhắn bất kỳ -> **Apps** -> **Translate to English**.
-- **REST API + Swagger UI:** Đi kèm FastAPI service bất đồng bộ, tài liệu tương tác sẵn sàng tại `/docs`.
-- **In-Memory Cache & Rate Limit:** Bounded cache và giới hạn tần suất tích hợp sẵn trong bộ nhớ, không cần Redis hay database bên ngoài.
+```mermaid
+flowchart TD
+    %% Styling
+    classDef client fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc,rx:8,ry:8;
+    classDef core fill:#0f172a,stroke:#818cf8,stroke-width:2px,color:#f8fafc,rx:8,ry:8;
+    classDef ai fill:#1e1b4b,stroke:#c084fc,stroke-width:2px,color:#f8fafc,rx:8,ry:8;
+
+    subgraph Entrypoints [" Ingress Clients "]
+        DA["Discord App"]:::client --> BC["Bot Cog"]:::client
+        BC --> BTS["🤖 Bot Translator Service"]:::client
+
+        HC["HTTP Client / Apps"]:::client --> TR["⚡ Translate Route (FastAPI)"]:::client
+    end
+
+    subgraph CoreEngine [" Core Processing "]
+        BTS --> TE
+        TR --> TE
+        TE["Translation Engine<br/><small>Validation • In-Memory Cache • Trim</small>"]:::core
+    end
+
+    subgraph ModelLayer [" AI Provider Layer "]
+        TE --> API_INT["AI Provider Interface"]:::ai
+        API_INT --> GP["Gemini Provider"]:::ai
+        GP --> GAPI["Google Gemini API<br/><code>gemini-3.5-flash-lite</code>"]:::ai
+    end
+```
+
+
 
 ---
 
@@ -167,6 +186,7 @@ Ví dụ gọi API bằng cURL
 
 Dịch Teencode tiếng Việt sang tiếng Anh:
 
+```curl
 curl -X POST "http://localhost:8000/api/v1/translate" \
      -H "Content-Type: application/json" \
      -d '{
@@ -174,9 +194,11 @@ curl -X POST "http://localhost:8000/api/v1/translate" \
        "source_language": "vi",
        "target_language": "en"
      }'
+```
 
 Kết quả trả về:
 
+```json
 {
   "success": true,
   "translation": "I don't know what to do today.",
@@ -185,9 +207,11 @@ Kết quả trả về:
   "provider": "gemini",
   "model": "gemini-3.5-flash-lite"
 }
+```
 
 Dịch tự động nhận diện ngôn ngữ nguồn (auto):
 
+```curl
 curl -X POST "http://localhost:8000/api/v1/translate" \
      -H "Content-Type: application/json" \
      -d '{
@@ -195,6 +219,7 @@ curl -X POST "http://localhost:8000/api/v1/translate" \
        "source_language": "auto",
        "target_language": "en"
      }'
+```
 
 ## Rate Limit & Giới hạn ký tự
 
