@@ -1,6 +1,6 @@
 <img src="./assets/icon.png" alt="Sachitone Translator" width="128" height="128" />
 
-# Sachitone Translator
+# Translator
 
 Sachitone Translator là bot Discord dịch thuật AI theo ngữ cảnh và dịch vụ REST API siêu nhẹ viết bằng Python, sử dụng mô hình Google Gemini (`gemini-3.5-flash-lite`).
 
