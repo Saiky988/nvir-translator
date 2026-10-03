@@ -529,9 +529,14 @@ class AutoTranslateCog(commands.Cog):
         jump_url: str,
     ) -> discord.Embed:
         content = "\n".join(f"`{lang.upper()}`: {trans}" for lang, trans in translations.items())
+
+        embed_color = settings.embed_color
+        if hasattr(author, "color") and author.color.value != 0:
+            embed_color = author.color
+
         embed = discord.Embed(
             description=content[:4096],
-            color=settings.embed_color,
+            color=embed_color,
         )
         embed.set_author(
             name=author.display_name,
