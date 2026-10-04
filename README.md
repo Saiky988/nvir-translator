@@ -278,7 +278,7 @@ curl -X POST "http://localhost:8000/api/v1/translate" \
 
 ---
 
-## ⚡ Rate Limit & Giới hạn an toàn
+## Rate Limit & Giới hạn an toàn
 
 - **Giới hạn người dùng:** Cooldown 1 yêu cầu / 2 giây / người dùng đối với các lệnh thủ công nhằm chống spam.
 - **Giới hạn ký tự:** Từ chối xử lý các nội dung vượt quá `2000` ký tự.
@@ -319,6 +319,6 @@ curl -X POST "http://localhost:8000/api/v1/translate" \
 
 ---
 
-## 📄 Giấy phép (License)
+## Giấy phép (License)
 
 Dự án được phân phối theo giấy phép mã nguồn mở [MIT License](LICENSE).
