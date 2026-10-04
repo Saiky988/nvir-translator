@@ -1,0 +1,5 @@
+VERSION = "1.0.0-beta"
+APP_NAME = "Nvirya Translator"
+GITHUB_REPO = "Saiky988/nvir-translator"
+GITHUB_RELEASES_URL = f"https://github.com/{GITHUB_REPO}/releases"
+GITHUB_API_RELEASES_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases"

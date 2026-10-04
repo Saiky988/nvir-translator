@@ -10,6 +10,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from config.version import GITHUB_REPO, VERSION
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -36,6 +38,12 @@ class Settings(BaseSettings):
     auto_translate_max_targets: int = 3
     auto_translate_semaphore: int = 5
     embed_color: int = 0x5865F2
+
+    running_version: str = VERSION
+    github_repo: str = GITHUB_REPO
+    update_check_interval_hours: int = 6
+    update_include_prereleases: bool = False
+    bot_owner_id: int | None = None
 
 
 @lru_cache

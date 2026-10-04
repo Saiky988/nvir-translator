@@ -3,6 +3,7 @@ import logging
 import discord
 from discord.ext import commands
 from apps.bot.services.translator import BotTranslatorService
+from apps.bot.services.update_checker import UpdateCheckerService
 from apps.bot.storage import AutoTranslateStorage
 from config.settings import settings
 
@@ -37,16 +38,20 @@ class SachitoneBot(commands.Bot):
         self.translator_service = BotTranslatorService()
         self.semaphore = asyncio.Semaphore(settings.auto_translate_semaphore)
         self.lock_manager = MessageLockManager()
+        self.update_service = UpdateCheckerService(self, self.storage)
 
     async def setup_hook(self) -> None:
         await self.storage.connect()
-        logger.info("Auto-translate persistence initialized at %s", settings.database_path)
+        logger.info("Database persistence initialized at %s", settings.database_path)
+
+        self.update_service.start()
 
         cogs = [
             "apps.bot.cogs.translate",
             "apps.bot.cogs.settings",
             "apps.bot.cogs.admin",
             "apps.bot.cogs.auto_translate",
+            "apps.bot.cogs.updates",
         ]
         for cog in cogs:
             try:
@@ -71,6 +76,7 @@ class SachitoneBot(commands.Bot):
         )
 
     async def close(self) -> None:
-        logger.info("Closing database connections and shutting down...")
+        logger.info("Stopping background tasks and shutting down...")
+        await self.update_service.stop()
         await self.storage.close()
         await super().close()

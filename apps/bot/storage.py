@@ -1,16 +1,17 @@
 import asyncio
 import json
 import logging
-import os
 import sqlite3
 from pathlib import Path
 from typing import Any
+
+from config.settings import settings
 
 logger = logging.getLogger("sachitone.bot.storage")
 
 
 class AutoTranslateStorage:
-    def __init__(self, db_path: str = "data/sachitone.db"):
+    def __init__(self, db_path: str = "data/translator.db"):
         self.db_path = db_path
         self._conn: sqlite3.Connection | None = None
         self._lock = asyncio.Lock()
@@ -67,10 +68,60 @@ class AutoTranslateStorage:
             "CREATE INDEX IF NOT EXISTS idx_config_guild ON auto_translate_configs(guild_id);"
         )
 
+        await self.execute("""
+        CREATE TABLE IF NOT EXISTS update_config (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            enabled INTEGER NOT NULL DEFAULT 1,
+            check_interval_hours INTEGER NOT NULL DEFAULT 6,
+            include_prereleases INTEGER NOT NULL DEFAULT 0,
+            notification_channel_id INTEGER,
+            notify_owner INTEGER NOT NULL DEFAULT 1,
+            running_version TEXT NOT NULL,
+            latest_release_tag TEXT,
+            latest_release_url TEXT,
+            latest_release_title TEXT,
+            latest_release_published_at TEXT,
+            latest_release_body TEXT,
+            last_notified_tag TEXT,
+            last_check_timestamp TEXT,
+            last_attempt_timestamp TEXT,
+            last_check_status TEXT DEFAULT 'pending',
+            last_check_error TEXT,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        """)
+        await self.execute("""
+        CREATE TABLE IF NOT EXISTS update_notification_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            release_tag TEXT NOT NULL,
+            destination_type TEXT NOT NULL,
+            destination_id INTEGER NOT NULL,
+            notified_at TEXT NOT NULL DEFAULT (datetime('now')),
+            status TEXT NOT NULL,
+            UNIQUE(release_tag, destination_type, destination_id)
+        );
+        """)
+
+        await self.execute(
+            """
+            INSERT OR IGNORE INTO update_config (
+                id, enabled, check_interval_hours, include_prereleases, running_version
+            ) VALUES (1, 1, ?, ?, ?);
+            """,
+            (
+                settings.update_check_interval_hours,
+                int(settings.update_include_prereleases),
+                settings.running_version,
+            ),
+        )
+        await self.execute(
+            "UPDATE update_config SET running_version = ? WHERE id = 1;",
+            (settings.running_version,),
+        )
+
     async def _load_enabled_channels(self) -> None:
         rows = await self.fetchall("SELECT channel_id FROM auto_translate_configs WHERE enabled = 1")
         self._enabled_channels = {row["channel_id"] for row in rows}
-        logger.info("Loaded %d enabled auto-translate channels into memory cache", len(self._enabled_channels))
 
     def is_channel_enabled(self, channel_id: int) -> bool:
         return channel_id in self._enabled_channels
@@ -154,15 +205,6 @@ class AutoTranslateStorage:
             row["sync_deletes"] = bool(row["sync_deletes"])
             row["enabled"] = bool(row["enabled"])
         return row
-
-    async def get_guild_configs(self, guild_id: int) -> list[dict[str, Any]]:
-        rows = await self.fetchall("SELECT * FROM auto_translate_configs WHERE guild_id = ?", (guild_id,))
-        for r in rows:
-            r["target_languages"] = json.loads(r["target_languages"])
-            r["sync_edits"] = bool(r["sync_edits"])
-            r["sync_deletes"] = bool(r["sync_deletes"])
-            r["enabled"] = bool(r["enabled"])
-        return rows
 
     async def disable_channel(self, channel_id: int) -> None:
         await self.execute(
@@ -248,6 +290,133 @@ class AutoTranslateStorage:
             tuple(source_message_ids),
         )
         return rows
+
+    async def get_update_config(self) -> dict[str, Any]:
+        row = await self.fetchone("SELECT * FROM update_config WHERE id = 1")
+        if not row:
+            await self.execute(
+                "INSERT OR IGNORE INTO update_config (id, running_version) VALUES (1, ?)",
+                (settings.running_version,),
+            )
+            row = await self.fetchone("SELECT * FROM update_config WHERE id = 1")
+        data = dict(row)
+        data["enabled"] = bool(data["enabled"])
+        data["include_prereleases"] = bool(data["include_prereleases"])
+        data["notify_owner"] = bool(data["notify_owner"])
+        return data
+
+    async def update_update_settings(self, **kwargs: Any) -> None:
+        allowed = {
+            "enabled",
+            "check_interval_hours",
+            "include_prereleases",
+            "notification_channel_id",
+            "notify_owner",
+        }
+        updates = []
+        params = []
+        for k, v in kwargs.items():
+            if k in allowed:
+                updates.append(f"{k} = ?")
+                if isinstance(v, bool):
+                    params.append(int(v))
+                else:
+                    params.append(v)
+        if updates:
+            updates.append("updated_at = datetime('now')")
+            sql = f"UPDATE update_config SET {', '.join(updates)} WHERE id = 1"
+            await self.execute(sql, tuple(params))
+
+    async def record_update_check_success(self, release_dict: dict[str, Any]) -> None:
+        query = """
+        UPDATE update_config SET
+            last_check_timestamp = datetime('now'),
+            last_attempt_timestamp = datetime('now'),
+            last_check_status = 'success',
+            last_check_error = NULL,
+            latest_release_tag = ?,
+            latest_release_url = ?,
+            latest_release_title = ?,
+            latest_release_published_at = ?,
+            latest_release_body = ?,
+            updated_at = datetime('now')
+        WHERE id = 1;
+        """
+        await self.execute(
+            query,
+            (
+                release_dict.get("tag_name"),
+                release_dict.get("html_url"),
+                release_dict.get("name") or release_dict.get("tag_name"),
+                release_dict.get("published_at"),
+                release_dict.get("body") or "",
+            ),
+        )
+
+    async def record_update_check_failure(self, status: str, error_message: str) -> None:
+        query = """
+        UPDATE update_config SET
+            last_attempt_timestamp = datetime('now'),
+            last_check_status = ?,
+            last_check_error = ?,
+            updated_at = datetime('now')
+        WHERE id = 1;
+        """
+        await self.execute(query, (status, error_message))
+
+    async def claim_notification(self, release_tag: str, destination_type: str, destination_id: int) -> bool:
+        async with self._lock:
+            def _claim() -> bool:
+                try:
+                    with self._conn:
+                        self._conn.execute(
+                            """
+                            INSERT INTO update_notification_history (
+                                release_tag, destination_type, destination_id, status
+                            ) VALUES (?, ?, ?, 'pending')
+                            """,
+                            (release_tag, destination_type, destination_id),
+                        )
+                    return True
+                except sqlite3.IntegrityError:
+                    cur = self._conn.execute(
+                        """
+                        SELECT status FROM update_notification_history
+                        WHERE release_tag = ? AND destination_type = ? AND destination_id = ?
+                        """,
+                        (release_tag, destination_type, destination_id),
+                    )
+                    row = cur.fetchone()
+                    if row and row["status"] == "failed":
+                        with self._conn:
+                            self._conn.execute(
+                                """
+                                UPDATE update_notification_history SET status = 'pending'
+                                WHERE release_tag = ? AND destination_type = ? AND destination_id = ?
+                                """,
+                                (release_tag, destination_type, destination_id),
+                            )
+                        return True
+                    return False
+
+            return await asyncio.to_thread(_claim)
+
+    async def mark_notification_result(
+        self, release_tag: str, destination_type: str, destination_id: int, status: str
+    ) -> None:
+        query = """
+        UPDATE update_notification_history SET
+            status = ?,
+            notified_at = datetime('now')
+        WHERE release_tag = ? AND destination_type = ? AND destination_id = ?;
+        """
+        await self.execute(query, (status, release_tag, destination_type, destination_id))
+
+    async def set_last_notified_tag(self, release_tag: str) -> None:
+        await self.execute(
+            "UPDATE update_config SET last_notified_tag = ?, updated_at = datetime('now') WHERE id = 1;",
+            (release_tag,),
+        )
 
     async def close(self) -> None:
         async with self._lock:
