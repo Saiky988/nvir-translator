@@ -3,6 +3,14 @@
 </p>
 
 <h1 align="center">Nvirya Translator</h1>
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/Discord.py-v2.0+-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord.py" />
+  <img src="https://img.shields.io/badge/Google%20Gemini-Flash--Lite-8E75B2?style=flat&logo=google-gemini&logoColor=white" alt="Gemini" />
+  <img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat" alt="MIT License" />
+  <img src="https://img.shields.io/badge/Version-v1.0.0--beta-orange?style=flat" alt="Version" />
+</p>
+
 
 <p align="center">
   Bot Discord dịch thuật AI theo ngữ cảnh và dịch vụ REST API siêu nhẹ viết bằng Python, sử dụng mô hình Google Gemini (<code>gemini-3.5-flash-lite</code>).
