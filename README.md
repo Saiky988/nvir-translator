@@ -1,8 +1,9 @@
 <p align="center">
-  <img src="./assets/icon.png" alt="Sachitone Translator" width="128" height="128" />
+  <img src="./assets/icon.png" alt="Nvirya Translator" width="128" height="128" />
 </p>
 
 <h1 align="center">Nvirya Translator</h1>
+
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python&logoColor=white" alt="Python" />
   <img src="https://img.shields.io/badge/Discord.py-v2.0+-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord.py" />
@@ -13,7 +14,7 @@
 
 
 <p align="center">
-  Bot Discord dịch thuật AI theo ngữ cảnh và dịch vụ REST API siêu nhẹ viết bằng Python, sử dụng mô hình Google Gemini (<code>gemini-3.5-flash-lite</code>).
+  Bot Discord dịch thuật AI theo ngữ cảnh và dịch vụ REST API siêu nhẹ viết bằng Python, sử dụng mô hình Google Gemini.
 </p>
 
 ---
@@ -31,7 +32,7 @@
 - **Không dịch cờ & Không gắn footer:** Giao diện dịch trực quan, sạch sẽ, không hiển thị icon cờ và không chèn footer thừa thãi.
 - **Hiểu ngữ cảnh chat & Teencode:** Xử lý tự nhiên tiếng lóng Discord, teencode tiếng Việt (`ko`, `k`, `kh`, `hok`, `hong`, `mik`, `m`, `t`, `j`, `cx`, `r`, `đc`), thuật ngữ game (`flex 3 pity ra char luôn`), meme và lỗi chính tả.
 - **Bảo toàn 100% cú pháp Discord:** Giữ nguyên user mention (`<@id>`), role mention (`<@&id>`), channel mention (`<#id>`), custom emoji (`<:name:id>`), liên kết URL và định dạng Markdown.
-- **Không dịch khối code:** Khối code inline (`` `code` ``) và code block (``` ```) luôn được giữ nguyên vẹn.
+- **Không dịch khối code:** Khối code inline (\`\` `code` \`\`) và code block (\`\`\` \`\`\`) luôn được giữ nguyên vẹn.
 - **Chống lặp vô tận (Loop Prevention):** Tự động bỏ qua tin nhắn từ bot/webhook và theo dõi ID tin nhắn do chính bot tạo ra để tránh dịch chéo.
 - **Lưu trữ SQLite bất đồng bộ (WAL Mode):** Cấu hình kênh và ánh xạ tin nhắn tự động lưu bền vững, không yêu cầu cài đặt Redis hay PostgreSQL.
 - **REST API + Swagger UI:** Đi kèm FastAPI service bất đồng bộ, tài liệu tương tác sẵn sàng tại `/docs`.
